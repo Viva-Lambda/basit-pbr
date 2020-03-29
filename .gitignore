@@ -45,5 +45,5 @@ CTestTestfile.cmake
 _deps
 
 # leave out executables
-bin/*
-!bin/media/*
+**/bin/*
+!**/bin/media
