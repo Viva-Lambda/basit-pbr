@@ -13,6 +13,7 @@
 
 # Compiled Dynamic libraries
 *.so
+*.so.*
 *.dylib
 *.dll
 
@@ -24,11 +25,13 @@
 *.lai
 *.la
 *.a
+*.a.*
 *.lib
 
 # Executables
 *.exe
 *.out
+*.out.*
 *.app
 
 # cmake files
@@ -44,6 +47,9 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 
-# leave out executables
+# kaan leave out executables
 **/bin/*
 !**/bin/media
+
+# kaan leave out build dir
+**/build/*
