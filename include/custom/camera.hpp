@@ -42,13 +42,13 @@ public:
          glm::vec3 Up = glm::vec3(0.0f, 1.0f, 0.0f), float Yaw = YAW,
          float Pitch = PITCH, float Zoom = ZOOM,
          glm::vec3 Front = glm::vec3(0.0f, 0.0f, -1.0f), float Speed = SPEED,
-         float Sens = SENSITIVITY
-         );
+         float Sens = SENSITIVITY);
 
   // Constructor 2
   Camera(float posX, float posY, float posZ, float upX, float upY, float upZ,
          float Yaw, float Pitch, glm::vec3 Front = glm::vec3(0.0f, 0.0f, -1.0f),
          float Speed = SPEED, float Sens = SENSITIVITY, float Zoom = ZOOM);
+  void processKeyBoardRotate(Camera_Movement direction, float deltaTime);
   virtual void processKeyboard(Camera_Movement direction, float deltaTime);
   glm::mat4 getViewMatrix();
   virtual void processMouseMovement(float xoffset, float yoffset,
@@ -162,6 +162,25 @@ void Camera::processMouseMovement(float xoffset, float yoffset,
 
   this->updateCameraVectors();
 }
+void Camera::processKeyBoardRotate(Camera_Movement direction, float deltaTime) {
+
+  deltaTime *= this->movementSpeed;
+  switch (direction) {
+  case FORWARD:
+    this->pitch += deltaTime;
+    break;
+  case BACKWARD:
+    this->pitch -= deltaTime;
+    break;
+  case RIGHT:
+    this->yaw += deltaTime;
+    break;
+  case LEFT:
+    this->yaw -= deltaTime;
+    break;
+  }
+  this->updateCameraVectors();
+}
 
 void Camera::processMouseScroll(float yoffset) {
   float zoom = this->zoom;
@@ -197,7 +216,7 @@ void FpsCamera::processKeyboard(Camera_Movement direction, float deltaTime) {
     this->pos -= this->right * velocity;
     break;
   }
-  this -> pos.y = 0.0f;
+  this->pos.y = 0.0f;
 }
 
 #endif

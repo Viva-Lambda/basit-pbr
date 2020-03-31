@@ -14,6 +14,7 @@ uniform float ambientCoeff; // a good value is 0.1
 uniform float shininess; // a good value is 32
 
 uniform vec3 attC; // x=c1, y=c2, z=c3
+uniform float lightIntensity;
 
 // textures
 uniform sampler2D diffuseMap;
@@ -36,14 +37,14 @@ void main() {
   // lambertian terms k_d * (N \cdot L) * I_p
   vec3 surfaceNormal = getSurfaceNormal();
   vec3 lightDirection = getLightDir();
-  vec diffuseColor = getDiffuseColor(lightDirection, surfaceNormal, color);
+  vec3 diffuseColor = getDiffuseColor(lightDirection, surfaceNormal, color);
 
   // attenuation term f_att
   // f_att = min(\frac{1}{c_1 + c_2{\times}d_L + c_3{\times}d^2_{L}} , 1)
   float dist = distance(TbnLightPos, TbnFragPos);
   float attenuation = computeAttenuation(attC, dist);
 
-  vec3 diffuse = attenuation * diffuseColor;
+  vec3 diffuse = attenuation * diffuseColor * lightIntensity;
 
   // adding specular terms
   vec3 specular = getSpecColor(lightDirection, surfaceNormal);
