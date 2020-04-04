@@ -1,6 +1,5 @@
 #version 330 core
 
-in vec3 Normal;
 in vec3 FragPos;
 in vec2 TexCoord;
 in vec3 TbnLightPos;
@@ -48,7 +47,13 @@ void main() {
   // adding specular terms
   vec3 specular = getSpecColor(lightDirection, surfaceNormal);
 
-    FragColor = vec4(ambient + diffuse + specular, 1.0);
+  //FragColor = vec4(ambient + diffuse + specular, 1.0);
+  FragColor = vec4(diffuse + specular, 1.0);
+  //FragColor = vec4(diffuse, 1.0);
+  //FragColor = vec4(diffuseColor, 1.0);
+  //FragColor = vec4(color, 1.0);
+  //FragColor = vec4(1.0);
+  //FragColor = vec4(surfaceNormal, 1.0);
 }
 
 float computeAttenuation(vec3 att, float lfragdist) {
@@ -73,9 +78,9 @@ vec3 getDiffuseColor(vec3 ldir, vec3 normal, vec3 color) {
   return max(costheta, 0.0) * color;
 }
 vec3 getSpecColor(vec3 lightDir, vec3 normal) {
-    vec3 viewDir = getViewDir();
+  vec3 viewDir = getViewDir();
   vec3 refdir = reflect(-lightDir, normal);
   vec3 hwaydir = normalize(lightDir + viewDir);
   float specAngle = max(dot(refdir, hwaydir), 0.0);
-  return pow(specAngle, shininess);
+  return pow(specAngle, shininess) * vec3(0.2);
 }

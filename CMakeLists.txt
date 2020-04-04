@@ -30,6 +30,11 @@ add_executable(myWin.out
     "src/glad.c"
     "src/window.cpp"
     )
+add_executable(texture.out
+    "src/glad.c"
+    "src/texture.cpp"
+    )
+
 add_executable(phong.out
     "src/glad.c"
     "src/phong/phong.cpp"
@@ -48,6 +53,7 @@ add_executable(pbrtexture.out
     )
 
 target_link_libraries(myWin.out ${ALL_LIBS})
+target_link_libraries(texture.out ${ALL_LIBS})
 target_link_libraries(phong.out ${ALL_LIBS})
 target_link_libraries(phongno.out ${ALL_LIBS})
 target_link_libraries(pbr.out ${ALL_LIBS})
@@ -57,3 +63,4 @@ install(TARGETS phong.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")
 install(TARGETS phongno.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")
 install(TARGETS pbr.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")
 install(TARGETS pbrtexture.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")
+install(TARGETS texture.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")

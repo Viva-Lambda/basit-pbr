@@ -1,7 +1,7 @@
 // author: Kaan Eraslan
 // license: see, LICENSE
-#include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glad/glad.h>
 
 #include <custom/camera.hpp>
 #include <custom/shader.hpp>
@@ -97,11 +97,11 @@ int main() {
   // rustediron2_normal.png
   // rustediron2_roughness.png
 
-  fs::path diffmapPath = textureDirPath / "new.png";
-  // fs::path diffmapPath = textureDirPath / "rustediron2_basecolor.png";
+  // fs::path diffmapPath = textureDirPath / "new.png";
+  fs::path diffmapPath = textureDirPath / "rustediron2_basecolor.png";
   // fs::path specularMapPath = textureDirPath / "nmap01.png";
-  fs::path normalMapPath = textureDirPath / "nmap01.png";
-  // fs::path normalMapPath = textureDirPath / "rustediron2_normal.png";
+  // fs::path normalMapPath = textureDirPath / "nmap01.png";
+  fs::path normalMapPath = textureDirPath / "rustediron2_normal.png";
 
   // fs::path diffmapPath = textureDirPath / "rustediron2_basecolor.png";
   // fs::path specularMapPath = textureDirPath / "rustediron2_metallic.png";
@@ -163,7 +163,6 @@ int main() {
     cubeShader.setMat4Uni("projection", projection);
     cubeShader.setVec3Uni("viewPos", viewPos);
     cubeShader.setVec3Uni("lightPos", lightPos);
-    cubeShader.setFloatUni("lightIntensity", lightIntensity);
     //
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, diffuseMap);
@@ -180,7 +179,6 @@ int main() {
     lampShader.setMat4Uni("model", lampModel);
     lampShader.setMat4Uni("projection", projection);
     lampShader.setMat4Uni("view", viewMat);
-    lampShader.setFloatUni("lightIntensity", lightIntensity);
     // render lamp
     renderLamp();
 
@@ -299,10 +297,11 @@ GLuint loadTexture2d_proc(const char *texturePath) {
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+    stbi_image_free(data);
   } else {
     std::cout << "Failed to load texture" << std::endl;
+    stbi_image_free(data);
   }
-  stbi_image_free(data);
   return texture;
 }
 glm::vec3 getTangent(glm::vec2 deltaUV2, glm::vec2 deltaUV1, glm::vec3 edge1,
@@ -330,9 +329,9 @@ void cubeShaderInit_proc(Shader cubeShader) {
   float ambientCoeff = 0.1f;
   float shininess = 200.0f;
   glm::vec3 attc(1.0f, 0.0f, 0.0f);
-  cubeShader.setFloatUni("ambientCoeff", ambientCoeff);
-  cubeShader.setFloatUni("shininess", shininess);
-  cubeShader.setVec3Uni("attC", attc);
+  //  cubeShader.setFloatUni("ambientCoeff", ambientCoeff);
+  // cubeShader.setFloatUni("shininess", shininess);
+  // cubeShader.setVec3Uni("attC", attc);
 }
 void renderTriangle(float vert[15], float normal[3]) {
   GLuint triVBO, triVAO;
@@ -389,7 +388,7 @@ void renderTriangle(float vert[15], float normal[3]) {
                         3,      // vec3
                         GL_FLOAT, GL_FALSE, fsize, (void *)(8 * sizeof(float)));
   glEnableVertexAttribArray(4); // location
-  glVertexAttribPointer(4,      // location ==  aBiTan
+  glVertexAttribPointer(4,      // location ==  aTan
                         3,      // vec3
                         GL_FLOAT, GL_FALSE, fsize,
                         (void *)(11 * sizeof(float)));
