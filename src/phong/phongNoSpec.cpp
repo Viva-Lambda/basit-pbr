@@ -97,10 +97,10 @@ int main() {
   // rustediron2_normal.png
   // rustediron2_roughness.png
 
-  fs::path diffmapPath = textureDirPath / "new.png";
+  fs::path diffmapPath = textureDirPath / "Stone_001_Diffuse.png";
   // fs::path diffmapPath = textureDirPath / "rustediron2_basecolor.png";
   // fs::path specularMapPath = textureDirPath / "nmap01.png";
-  fs::path normalMapPath = textureDirPath / "nmap01.png";
+  fs::path normalMapPath = textureDirPath / "Stone_001_Normal.png";
   // fs::path normalMapPath = textureDirPath / "rustediron2_normal.png";
 
   // fs::path diffmapPath = textureDirPath / "rustediron2_basecolor.png";
