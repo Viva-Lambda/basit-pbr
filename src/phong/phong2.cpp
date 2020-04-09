@@ -37,6 +37,9 @@ Camera camera(glm::vec3(0.0f, 0.0f, 0.3f));
 float deltaTime = 0.0f;
 float lastTime = 0.0f;
 
+bool inTangent = false;
+
+glm::vec3 lightPos = glm::vec3(0.2f, 1.0f, 0.5f);
 // function declarations
 
 static void glfwErrorCallBack(int id, const char *desc);
@@ -44,23 +47,22 @@ void initializeGLFWMajorMinor(unsigned int maj, unsigned int min);
 void framebuffer_size_callback(GLFWwindow *window, int newWidth, int newHeight);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 void mouse_scroll_callback(GLFWwindow *window, double xpos, double ypos);
-GLuint loadTexture2d_proc(const char *texturePath);
+GLuint loadTexture2d_proc(const char *texturePath, GLuint tex);
 void processInput_proc(GLFWwindow *window);
-void cubeShaderInit_proc(Shader cubeShader);
+void cubeShaderInit_proc(Shader myShader);
 void renderCube();
+void renderCubeInTangentSpace();
 void renderLamp();
-void renderTriangle(float vert[15], float normal[3]);
+void renderTriangleInTangentSpace(float vert[15], float normal[3]);
 glm::vec3 getTangent(glm::vec2 deltaUV2, glm::vec2 deltaUV1, glm::vec3 edge1,
                      glm::vec3 edge2);
 glm::vec3 getBiTangent(glm::vec2 deltaUV2, glm::vec2 deltaUV1, glm::vec3 edge1,
                        glm::vec3 edge2);
 
-glm::vec3 lightPos = glm::vec3(0.2f, 1.0f, 0.5f);
-
 int main() {
   initializeGLFWMajorMinor(4, 2);
-  GLFWwindow *window = glfwCreateWindow(WINWIDTH, WINHEIGHT,
-                                        "Basic Color With Cubes", NULL, NULL);
+  GLFWwindow *window = glfwCreateWindow(
+      WINWIDTH, WINHEIGHT, "Basic Phong With Specular Map", NULL, NULL);
 
   if (window == NULL) {
     std::cout << "Loading GLFW window had failed" << std::endl;
@@ -92,45 +94,49 @@ int main() {
   glEnable(GL_DEPTH_TEST);
 
   // deal with textures
-  // rustediron2_basecolor.png
+  // Stone_001_Diffuse.png
+  // Stone_001_Normal.png
+  // Stone_001_Specular.png
   // rustediron2_metallic.png
   // rustediron2_normal.png
   // rustediron2_roughness.png
 
   fs::path diffmapPath = textureDirPath / "Stone_001_Diffuse.png";
-  // fs::path diffmapPath = textureDirPath / "rustediron2_basecolor.png";
-  // fs::path specularMapPath = textureDirPath / "nmap01.png";
+  fs::path specularMapPath = textureDirPath / "Stone_001_Specular.png";
   fs::path normalMapPath = textureDirPath / "Stone_001_Normal.png";
-  // fs::path normalMapPath = textureDirPath / "rustediron2_normal.png";
 
-  // fs::path diffmapPath = textureDirPath / "rustediron2_basecolor.png";
-  // fs::path specularMapPath = textureDirPath / "rustediron2_metallic.png";
-  // fs::path normalMapPath = textureDirPath / "rustediron2_normal.png";
-
-  GLuint diffuseMap = loadTexture2d_proc(diffmapPath.c_str());
-  GLuint normalMap = loadTexture2d_proc(normalMapPath.c_str());
+  GLuint diffuseMap;
+  glGenTextures(1, &diffuseMap);
+  loadTexture2d_proc(diffmapPath.c_str(), diffuseMap);
+  GLuint specularMap;
+  glGenTextures(1, &specularMap);
+  loadTexture2d_proc(specularMapPath.c_str(), specularMap);
+  GLuint normalMap;
+  glGenTextures(1, &normalMap);
+  loadTexture2d_proc(normalMapPath.c_str(), normalMap);
 
   // load shaders
   // cube shader
-  std::string vertFileName = "phong.vert";
-  std::string fragFileName = "phongNoSpec.frag";
-  fs::path vertPath = shaderDirPath / vertFileName;
-  fs::path fragPath = shaderDirPath / fragFileName;
-  Shader cubeShader(vertPath.c_str(), fragPath.c_str());
+  std::string vertFileName_t = "phong.vert";
+  std::string fragFileName_t = "phong.frag";
+
+  fs::path vertPath_t = shaderDirPath / vertFileName_t;
+  fs::path fragPath_t = shaderDirPath / fragFileName_t;
+
+  Shader tangentCubeShader(vertPath_t.c_str(), fragPath_t.c_str());
 
   // lamp shader
   fs::path frag2FileName("basic_color_light.frag");
   fs::path frag2Path = shaderDirPath / frag2FileName;
-  Shader lampShader(vertPath.c_str(), frag2Path.c_str());
+  Shader lampShader(vertPath_t.c_str(), frag2Path.c_str());
 
   // let's set up some uniforms
 
   // cube shader
   //
 
-  cubeShader.useProgram();
   // init proc for uniforms that don't change over rendering
-  cubeShaderInit_proc(cubeShader);
+  cubeShaderInit_proc(tangentCubeShader);
 
   // let's deal with vertex array objects and buffers
   // render loop
@@ -156,21 +162,28 @@ int main() {
 
     // render cube object
     glm::mat4 cubeModel(1.0f);
+
+    // isik kaynagi
+    lightPos.x = 1.0f + sin(currentTime) * 2.0f;
+    lightPos.y = sin(currentTime / 2.0f) * 1.0f;
+    lightPos.z = sin(currentTime / 5.0f) * 3.0f;
     // float angle = 20.0f;
-    cubeShader.useProgram();
-    cubeShader.setMat4Uni("view", viewMat);
-    cubeShader.setMat4Uni("model", cubeModel);
-    cubeShader.setMat4Uni("projection", projection);
-    cubeShader.setVec3Uni("viewPos", viewPos);
-    cubeShader.setVec3Uni("lightPos", lightPos);
-    cubeShader.setFloatUni("lightIntensity", lightIntensity);
-    //
+    // render cube
+    tangentCubeShader.useProgram();
+    tangentCubeShader.setMat4Uni("view", viewMat);
+    tangentCubeShader.setMat4Uni("model", cubeModel);
+    tangentCubeShader.setMat4Uni("projection", projection);
+    tangentCubeShader.setVec3Uni("viewPos", viewPos);
+    tangentCubeShader.setVec3Uni("lightPos", lightPos);
+    tangentCubeShader.setFloatUni("lightIntensity", lightIntensity);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, diffuseMap);
     glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, specularMap);
+    glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, normalMap);
-    // render cube
-    renderCube();
+
+    renderCubeInTangentSpace();
 
     // unbind the light vertex array object
     glm::mat4 lampModel(1.0f);
@@ -238,25 +251,26 @@ void processInput_proc(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) {
     camera.processKeyBoardRotate(BACKWARD, 0.7f);
   }
-  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-    lightPos.y += 0.2f;
+  if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS) {
+    lightPos.y += 0.05f;
   }
-  if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
-    lightPos.y -= 0.2f;
+  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+    lightPos.y -= 0.05f;
   }
-  if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS) {
-    lightPos.x += 0.2f;
+  if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+    lightPos.x += 0.05f;
   }
-  if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
-    lightPos.x -= 0.2f;
+  if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+    lightPos.x -= 0.05f;
   }
-  if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS) {
-    lightPos.z += 0.2f;
+  if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+    lightPos.z -= 0.05f; // the axis are inverse
   }
-  if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS) {
-    lightPos.z -= 0.2f;
+  if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+    lightPos.z += 0.05f;
   }
 }
+
 static void glfwErrorCallBack(int id, const char *desc) {
   std::cout << desc << std::endl;
 }
@@ -270,10 +284,8 @@ void initializeGLFWMajorMinor(unsigned int maj, unsigned int min) {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, min);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 }
-GLuint loadTexture2d_proc(const char *texturePath) {
+GLuint loadTexture2d_proc(const char *texturePath, GLuint tex) {
   // create and load, bind texture to gl
-  GLuint texture;
-  glGenTextures(1, &texture);
 
   int width, height, nbChannels;
   unsigned char *data = stbi_load(texturePath, &width, &height, &nbChannels, 0);
@@ -286,13 +298,19 @@ GLuint loadTexture2d_proc(const char *texturePath) {
     } else if (nbChannels == 4) {
       format = GL_RGBA;
     }
-    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindTexture(GL_TEXTURE_2D, tex);
     glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format,
                  GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    // use nearest neighbor interpolation when zooming out
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    // use nearest neighbor interpolation when zooming out
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
                     GL_LINEAR_MIPMAP_LINEAR);
@@ -303,7 +321,7 @@ GLuint loadTexture2d_proc(const char *texturePath) {
     std::cout << "Failed to load texture" << std::endl;
   }
   stbi_image_free(data);
-  return texture;
+  return tex;
 }
 glm::vec3 getTangent(glm::vec2 deltaUV2, glm::vec2 deltaUV1, glm::vec3 edge1,
                      glm::vec3 edge2) {
@@ -326,15 +344,19 @@ glm::vec3 getBiTangent(glm::vec2 deltaUV2, glm::vec2 deltaUV1, glm::vec3 edge1,
   bitangent = glm::normalize(bitangent);
   return bitangent;
 }
-void cubeShaderInit_proc(Shader cubeShader) {
+void cubeShaderInit_proc(Shader myShader) {
+  myShader.useProgram();
   float ambientCoeff = 0.1f;
   float shininess = 200.0f;
   glm::vec3 attc(1.0f, 0.0f, 0.0f);
-  cubeShader.setFloatUni("ambientCoeff", ambientCoeff);
-  cubeShader.setFloatUni("shininess", shininess);
-  cubeShader.setVec3Uni("attC", attc);
+  myShader.setFloatUni("ambientCoeff", ambientCoeff);
+  myShader.setFloatUni("shininess", shininess);
+  myShader.setVec3Uni("attC", attc);
+  myShader.setIntUni("diffuseMap", 0);
+  myShader.setIntUni("specularMap", 1);
+  myShader.setIntUni("normalMap", 2);
 }
-void renderTriangle(float vert[15], float normal[3]) {
+void renderTriangleInTangentSpace(float vert[15], float normal[3]) {
   GLuint triVBO, triVAO;
   glGenBuffers(1, &triVBO);
   glGenVertexArrays(1, &triVAO);
@@ -399,6 +421,41 @@ void renderTriangle(float vert[15], float normal[3]) {
   glDeleteVertexArrays(1, &triVAO);
   glDeleteBuffers(1, &triVBO);
 }
+void renderTriangle(float vert[15], float normal[3]) {
+  GLuint triVBO, triVAO;
+  glGenBuffers(1, &triVBO);
+  glGenVertexArrays(1, &triVAO);
+
+  // there are two triangles in a square
+  float trivert[] = {
+      vert[0],   vert[1],   vert[2],   normal[0], normal[1], normal[2],
+      vert[3],   vert[4],   vert[5],   vert[6],   vert[7],   normal[0],
+      normal[1], normal[2], vert[8],   vert[9],   vert[10],  vert[11],
+      vert[12],  normal[0], normal[1], normal[2], vert[13],  vert[14],
+  };
+  glBindVertexArray(triVAO);
+  glBindBuffer(GL_ARRAY_BUFFER, triVBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(trivert), &trivert, GL_STATIC_DRAW);
+  // specify attributes
+  GLsizei fsize = 8 * sizeof(float);
+  glVertexAttribPointer(0, // location ==  aPos
+                        3, // vec3
+                        GL_FLOAT, GL_FALSE, fsize, (void *)0);
+  glEnableVertexAttribArray(0); // location
+  glVertexAttribPointer(1,      // location ==  aNormal
+                        3,      // vec3
+                        GL_FLOAT, GL_FALSE, fsize, (void *)3);
+  glEnableVertexAttribArray(1); // location
+  glVertexAttribPointer(2,      // location ==  aTexCoord
+                        2,      // vec2
+                        GL_FLOAT, GL_FALSE, fsize, (void *)6);
+  glEnableVertexAttribArray(2); // location
+  glBindVertexArray(triVAO);
+  glDrawArrays(GL_TRIANGLES, 0, 3);
+  glBindVertexArray(0);
+  glDeleteVertexArrays(1, &triVAO);
+  glDeleteBuffers(1, &triVBO);
+}
 void renderLamp() {
   GLuint vbo, lightVao;
   glGenBuffers(1, &vbo);
@@ -415,6 +472,93 @@ void renderLamp() {
   glBindVertexArray(0);
   glDeleteVertexArrays(1, &lightVao);
   glDeleteBuffers(1, &vbo);
+}
+void renderCubeInTangentSpace() {
+  /*
+     Draw cube
+   */
+  float s1n[] = {0.0f, 0.0f, -1.0f};
+  float s2n[] = {0.0f, 0.0f, 1.0f};
+  float s3n[] = {-1.0f, 0.0f, 0.0f};
+  float s4n[] = {1.0f, 0.0f, 0.0f};
+  float s5n[] = {0.0f, -1.0f, 0.0f};
+  float s6n[] = {0.0f, 1.0f, 0.0f};
+
+  // positions        // texture coords
+  float t1[] = {
+      -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,  0.5f, -0.5f, -0.5f,
+      1.0f,  0.0f,  0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
+  };
+  renderTriangleInTangentSpace(t1, s1n);
+  float tt1[] = {
+      0.5f, 0.5f, -0.5f, 1.0f,  1.0f,  -0.5f, 0.5f, -0.5f,
+      0.0f, 1.0f, -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,
+  };
+  renderTriangleInTangentSpace(tt1, s1n);
+
+  float t2[] = {
+      -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 0.5f, -0.5f, 0.5f,
+      1.0f,  0.0f,  0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+  };
+
+  renderTriangleInTangentSpace(t2, s2n);
+  float tt2[] = {
+      0.5f, 0.5f, 0.5f,  1.0f,  1.0f, -0.5f, 0.5f, 0.5f,
+      0.0f, 1.0f, -0.5f, -0.5f, 0.5f, 0.0f,  0.0f,
+  };
+
+  renderTriangleInTangentSpace(tt2, s2n);
+
+  float t3[] = {
+      -0.5f, 0.5f, 0.5f,  1.0f,  0.0f,  -0.5f, 0.5f, -0.5f,
+      1.0f,  1.0f, -0.5f, -0.5f, -0.5f, 0.0f,  1.0f,
+  };
+  renderTriangleInTangentSpace(t3, s3n);
+
+  float tt3[] = {
+      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, -0.5f, -0.5f, 0.5f,
+      0.0f,  0.0f,  -0.5f, 0.5f, 0.5f, 1.0f,  0.0f,
+  };
+  renderTriangleInTangentSpace(tt3, s3n);
+
+  float t4[] = {
+      0.5f, 0.5f, 0.5f, 1.0f,  0.0f,  0.5f, 0.5f, -0.5f,
+      1.0f, 1.0f, 0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+  };
+
+  renderTriangleInTangentSpace(t4, s4n);
+  float tt4[] = {
+      0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.5f, -0.5f, 0.5f,
+      0.0f, 0.0f,  0.5f,  0.5f, 0.5f, 1.0f, 0.0f,
+  };
+
+  renderTriangleInTangentSpace(tt4, s4n);
+
+  float t5[] = {
+      -0.5f, -0.5f, -0.5f, 0.0f,  1.0f, 0.5f, -0.5f, -0.5f,
+      1.0f,  1.0f,  0.5f,  -0.5f, 0.5f, 1.0f, 0.0f,
+  };
+
+  renderTriangleInTangentSpace(t5, s5n);
+
+  float tt5[] = {
+      0.5f, -0.5f, 0.5f,  1.0f,  0.0f,  -0.5f, -0.5f, 0.5f,
+      0.0f, 0.0f,  -0.5f, -0.5f, -0.5f, 0.0f,  1.0f,
+  };
+
+  renderTriangleInTangentSpace(tt5, s5n);
+
+  float t6[] = {
+      -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.5f, 0.5f, -0.5f,
+      1.0f,  1.0f, 0.5f,  0.5f, 0.5f, 1.0f, 0.0f,
+  };
+
+  renderTriangleInTangentSpace(t6, s6n);
+
+  float tt6[] = {0.5f, 0.5f, 0.5f,  1.0f, 0.0f,  -0.5f, 0.5f, 0.5f,
+                 0.0f, 0.0f, -0.5f, 0.5f, -0.5f, 0.0f,  1.0f};
+
+  renderTriangleInTangentSpace(tt6, s6n);
 }
 void renderCube() {
   /*
