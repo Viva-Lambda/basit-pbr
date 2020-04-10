@@ -8,8 +8,8 @@ in vec3 Normal;
 
 // pbr materials
 uniform sampler2D albedoMap;    // in main
-uniform sampler2D normalMap;    // in main
 uniform sampler2D metallicMap;  // in main
+uniform sampler2D normalMap;    // in main
 uniform sampler2D roughnessMap; // in main
 
 // light related
@@ -33,15 +33,13 @@ float roughnessToAlpha(float roughness);
 // How much of microsurface area is aligned with
 // halfway vector
 
-float normalDistFn(vec3 normal, vec3 halfway, float roughness);
-
 float bsNormalDistTraditional(vec3 normal, vec3 halfwayDir, float roughness);
 // traditional Beckmann Spizzichino Distribution
 
 float bsNormalDistAnisotropic(vec3 normal, vec3 halfwayDir, vec2 roughness);
 // anisotropic version Beckmann Spizzichino Distribution
 
-float trowReitzTraditional(vec3 normal, vec3 halfwayDir, vec2 roughness);
+float trowReitzTraditional(vec3 normal, vec3 halfwayDir, float roughness);
 // traditional Trowbridge Reitz normal distribution
 
 float trowReitzAnisotropic(vec3 normal, vec3 halfwayDir, vec2 roughness);
@@ -55,13 +53,18 @@ float trowReitzAnisotropic(vec3 normal, vec3 halfwayDir, vec2 roughness);
 float getAlpha(vec3 normal, vec3 halfDir, vec2 roughness);
 
 float geometryDistributionIn(float lambda);
-float geometryInOut(vec3 lambdaIn, vec3 lambdaOut);
+float geometryInOut(float lambdaIn, float lambdaOut);
 
 float bsLamdaTFn(vec3 normal, vec3 halfway, float roughness);
 // lambda for traditional Beckmann Spizzichino Distribution
 
+void bsLamdaTFnIO(vec3 normal, vec3 halfDir, vec3 viewDir, float roughness,
+                  float lambdaArr[2]);
+
 float bsLamdaAFn(vec3 normal, vec3 halfway, vec2 roughness);
 // lambda for anisoptric Beckmann Spizzichino Distribution
+void bsLamdaAFnIO(vec3 normal, vec3 halfDir, vec3 viewDir, vec2 roughness,
+                  float lambdaArr[2]);
 
 float bsLambdaFn(vec3 normal, vec3 halfway, float alpha);
 
@@ -72,9 +75,14 @@ float trowReitzLambdaA(vec3 normal, vec3 halfway, vec2 roughness);
 // lambda for antisoptric Trowbridge Reitz Distribution
 float trowReitzLambda(vec3 normal, vec3 halfway, float alpha);
 
+void trowReitzLambdaTIO(vec3 normal, vec3 halfDir, vec3 viewDir,
+                        float roughness, float lambdaArr[2]);
+void trowReitzLambdaAIO(vec3 normal, vec3 halfDir, vec3 viewDir, vec2 roughness,
+                        float lambdaArr[2]);
+
 // Fresnel Function
 
-float getFresnelSchlick(float costheta, vec3 refAtZero);
+vec3 getFresnelSchlick(float costheta, vec3 refAtZero);
 // roughness included due to indirect lightening
 vec3 diffuseCT(); // cook torrence diffuse color
 
@@ -93,17 +101,17 @@ float getTanPhi(vec3 normal, vec3 lightDir);
 float getTan2Phi(vec3 normal, vec3 lightDir);
 
 float computeAttenuation(vec3 att, float lfragdist);
+vec3 getSurfaceNormal();
 
 void main() {
   // main func for pbr
-  vec3 normal = normalize(Normal);
   vec3 viewDir = normalize(viewPos - WorldPos);
 
   // get albedo
-  vec3 albedo = texture(TexCoord, albedoMap).rgb;
+  vec3 albedo = texture(albedoMap, TexCoord).rgb;
 
   // get metallic
-  vec3 metallic = texture(TexCoord, metallicMap).rgb;
+  vec3 metallic = texture(metallicMap, TexCoord).rgb;
 
   // get normalMap
   vec3 snormal = getSurfaceNormal();
@@ -122,42 +130,41 @@ void main() {
   // mix albedo + metallic + fresnel
   refAtZero = mix(refAtZero, metallic, albedo);
   float hcostheta = getCosTheta(snormal, halfDir);
-  fresnel = getFresnelSchlick(hcostheta, refAtZero);
+  vec3 fresnel = getFresnelSchlick(hcostheta, refAtZero);
 
   float lightToFragDist = length(lightPos - WorldPos);
   float attenuation = computeAttenuation(attc, lightToFragDist);
   float dN; // Normal Distribution
   float gD;
   float lambdaArr[2];
-  float fresnel;
+  float lambdaIn;
+  float lambdaOut;
   vec3 radiance = lightColor * attenuation;
-  if (ndf == 1) { // Beckmann traditional
-    float rough = texture(TexCoord, roughnessMap).x;
+  if (ndf == 0) { // Beckmann traditional
+    float rough = texture(roughnessMap, TexCoord).x;
     dN = bsNormalDistTraditional(snormal, halfDir, rough);
     bsLamdaTFnIO(snormal, halfDir, viewDir, rough, lambdaArr);
     lambdaIn = lambdaArr[0];
     lambdaOut = lambdaArr[1];
     gD = geometryInOut(lambdaIn, lambdaOut);
-  } else if (ndf == 2) { // Beckmann anisoptric
-    vec2 rough = texture(TexCoord, roughnessMap).xy;
+  } else if (ndf == 1) { // Beckmann anisoptric
+    vec2 rough = texture(roughnessMap, TexCoord).xy;
     dN = bsNormalDistAnisotropic(snormal, halfDir, rough);
     bsLamdaAFnIO(snormal, halfDir, viewDir, rough, lambdaArr);
     lambdaIn = lambdaArr[0];
     lambdaOut = lambdaArr[1];
     gD = geometryInOut(lambdaIn, lambdaOut);
-  } else if (ndf == 3) { // Trowbridge Reitz traditional
-    float rough = texture(TexCoord, roughnessMap).x;
+  } else if (ndf == 2) { // Trowbridge Reitz traditional
+    float rough = texture(roughnessMap, TexCoord).x;
     dN = trowReitzTraditional(snormal, halfDir, rough);
-    trowReitzLambdaTIO(snormal, halfDir, viewDir,rough,
-                        lambdaArr);
+    trowReitzLambdaTIO(snormal, halfDir, viewDir, rough, lambdaArr);
     lambdaIn = lambdaArr[0];
     lambdaOut = lambdaArr[1];
     gD = geometryInOut(lambdaIn, lambdaOut);
-  } else if (ndf == 4) { // Trowbridge Reitz anisoptric
-    vec2 rough = texture(TexCoord, roughnessMap).xy;
+  } else if (ndf == 3) { // Trowbridge Reitz anisoptric
+    vec2 rough = texture(roughnessMap, TexCoord).xy;
     dN = trowReitzAnisotropic(snormal, halfDir, rough);
-    trowReitzLambdaAIO(snormal, halfDir, viewDir,rough,
-                        lambdaArr);
+    trowReitzLambdaAIO(snormal, halfDir, viewDir, rough, lambdaArr);
     lambdaIn = lambdaArr[0];
     lambdaOut = lambdaArr[1];
     gD = geometryInOut(lambdaIn, lambdaOut);
@@ -165,23 +172,28 @@ void main() {
   vec3 ks = fresnel;
   vec3 kd = vec3(1.0) - ks;
   kd = kd * (1.0 - metallic.x);
-  float t1 = dN * gD * fresnel;
+  vec3 t1 = dN * gD * fresnel;
 
   float outDir = getCosTheta(snormal, viewDir);
   float inDir = getCosTheta(snormal, lightDir);
 
   float t2 = 4.0 * outDir * inDir;
-  float specular = t1 / max(t2, 0.0001);
-  L_out += (kD * albedo.r / PI + specular) * radiance * inDir;
+  vec3 specular = t1 / max(t2, 0.0001);
+  L_out = (kd * albedo.r / PI + specular) * radiance * inDir;
 
   // end light source loop done
   // ambient coefficient k_a
   // vec3 ambient = albedo.r * ao * k_a;
   vec3 ambient = albedo.r * ao;
   vec3 color = ambient + L_out;
-  color = color/ (color + vec3(1.0));
-  color = pow(color, vec3(1.0/2.2));
-  FragColor = vec4(color, 1.0);
+  color = color / (color + vec3(1.0));
+  color = pow(color, vec3(1.0 / 2.2));
+  //FragColor = vec4(color, 1.0);
+  //FragColor = vec4(t1, 1.0); // black cube
+  //FragColor = vec4(t2); // black cube
+  //FragColor = vec4(ambient, 1.0); // white cube
+  //FragColor = vec4(gD); // white cube
+  FragColor = vec4(color, 1.0); // black cube
 }
 
 vec3 diffuseCT() {
@@ -191,7 +203,7 @@ vec3 diffuseCT() {
 
 float getCosTheta(vec3 normal, vec3 inLightDir) {
   // taken from pbr-book 3rd edition Pharr, Jakob
-  return normal * inLightDir;
+  return dot(normal, inLightDir);
 }
 float getCos2Theta(vec3 normal, vec3 inLightDir) {
   // taken from pbr-book 3rd edition Pharr, Jakob
@@ -200,7 +212,7 @@ float getCos2Theta(vec3 normal, vec3 inLightDir) {
 }
 float getSin2Theta(vec3 normal, vec3 inLightDir) {
   // taken from pbr-book 3rd edition Pharr, Jakob
-  cos2theta = getCos2Theta(normal, inLightDir);
+  float cos2theta = getCos2Theta(normal, inLightDir);
   return 1 - cos2theta;
 }
 float getSinTheta(vec3 normal, vec3 inLightDir) {
@@ -209,22 +221,25 @@ float getSinTheta(vec3 normal, vec3 inLightDir) {
 }
 float getTanTheta(vec3 normal, vec3 inLightDir) {
   // taken from pbr-book 3rd edition Pharr, Jakob
-  return getSinTheta(normal, inLightDir) / getCosTheta(normal, direction);
+  return getSinTheta(normal, inLightDir) / getCosTheta(normal, inLightDir);
 }
 float getTan2Theta(vec3 normal, vec3 inLightDir) {
   // taken from pbr-book 3rd edition Pharr, Jakob
-  return getTanTheta(normal, inLightDir) / getTanTheta(normal, direction);
+  return getTanTheta(normal, inLightDir) / getTanTheta(normal, inLightDir);
 }
 float getCosPhi(vec3 normal, vec3 inLightDir) {
   // taken from pbr-book 3rd edition Pharr, Jakob
   float radius = getSinTheta(normal, inLightDir);
-  if (radius == 0):
-        return 1.0;
-  else:
-        return clamp(inLightDir.x / radius, -1, 1);
+  float res;
+  if (radius == 0) {
+    res = 1.0;
+  } else {
+    res = clamp(inLightDir.x / radius, -1, 1);
+  }
+  return res;
 }
 float getCos2Phi(vec3 normal, vec3 inLightDir) {
-  return getCosPhi(normal, inLightDir) * *2;
+  return pow(getCosPhi(normal, inLightDir), 2);
 }
 float getSin2Phi(vec3 normal, vec3 inLightDir) {
   return 1 - getCos2Phi(normal, inLightDir);
@@ -274,7 +289,7 @@ float bsNormalDistTraditional(vec3 normal, vec3 halfwayDir, float roughness) {
   float tan2Half = getTan2Theta(normal, halfwayDir);
   float rough2 = roughness * roughness;
   float expTerm = -1 * tan2Half / rough2;
-  float expTerm = exp(expTerm);
+  expTerm = exp(expTerm);
   float cos2theta = getCos2Theta(normal, halfwayDir);
   float denominator = cos2theta * cos2theta * rough2 * PI;
   return expTerm / denominator;
@@ -292,7 +307,7 @@ float bsNormalDistAnisotropic(vec3 normal, vec3 halfwayDir, vec2 roughness) {
   float sinterm = cos2phi / ry * ry;
   float tan2Half = getTan2Theta(normal, halfwayDir);
   float expterm = -1 * tan2Half * (costerm + sinterm);
-  float expterm = exp(expterm);
+  expterm = exp(expterm);
   float cos2theta = getCos2Theta(normal, halfwayDir);
   float denominator = cos2theta * cos2theta * rx * ry * PI;
   return expterm / denominator;
@@ -302,7 +317,7 @@ float trowReitzTraditional(vec3 normal, vec3 halfwayDir, float roughness) {
   // taken from https://learnopengl.com/PBR/Theory
   float rough2 = roughness * roughness;
   float cos2theta = getCos2Theta(normal, halfwayDir);
-  float denom = Pi * ((cos2theta * (rough2 - 1) + 1) * *2);
+  float denom = PI * pow((cos2theta * (rough2 - 1) + 1),2);
   return rough2 / denom;
 }
 float trowReitzAnisotropic(vec3 normal, vec3 halfwayDir, vec2 roughness) {
@@ -319,7 +334,7 @@ float trowReitzAnisotropic(vec3 normal, vec3 halfwayDir, vec2 roughness) {
   tanterm *= tanterm;
   float cos2theta = getCos2Theta(normal, halfwayDir);
   cos2theta *= cos2theta;
-  return 1 / (cos2theta * rx * ry * Pi * tanterm);
+  return 1 / (cos2theta * rx * ry * PI * tanterm);
 }
 float getAlpha(vec3 normal, vec3 halfDir, vec2 roughness) {
   // compute alpha from halfway vector and surface normal
@@ -404,7 +419,7 @@ float trowReitzLambdaT(vec3 normal, vec3 halfway, float roughness) {
   // taken from pbr-book 3rd edition Pharr, Jakob
   // \frac{-1 + \sqrt{1 + {\alpha}^2 * tan^2(\theta)} }{2}
   float alpha = roughnessToAlpha(roughness);
-  return trowReitzLambda(normal, halfDir, alpha);
+  return trowReitzLambda(normal, halfway, alpha);
 }
 void trowReitzLambdaTIO(vec3 normal, vec3 halfDir, vec3 viewDir,
                         float roughness, float lambdaArr[2]) {
@@ -422,7 +437,7 @@ float geometryInOut(float lambdaIn, float lambdaOut) {
   return 1 / (1 + lambdaIn + lambdaOut);
 }
 
-float getFresnelSchlick(float costheta, vec3 refAtZero) {
+vec3 getFresnelSchlick(float costheta, vec3 refAtZero) {
   // taken from https://learnopengl.com/PBR/Lighting
   //
   return refAtZero + (1.0 - refAtZero) * pow(1.0 - costheta, 5.0);
