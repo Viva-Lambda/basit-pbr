@@ -97,12 +97,20 @@ int main() {
   // rustediron2_normal.png
   // rustediron2_roughness.png
 
-  fs::path diffmapPath = textureDirPath / "Stone_001_Diffuse.png";
-  fs::path nmapPath = textureDirPath / "Stone_001_Normal.png";
+  // layered-cliff-albedo.png
+  // layered-cliff-ao.png
+  // layered-cliff-height.png
+  // layered-cliff-metallic.png
+  // layered-cliff-normal-ogl.png
+  // layered-cliff-preview.jpg
+  // layered-cliff-roughness.png
 
-  GLuint diffuseMap;
-  glGenTextures(1, &diffuseMap);
-  loadTexture2d_proc(diffmapPath.c_str(), diffuseMap);
+  fs::path diffmapPath = textureDirPath / "layered-cliff-albedo.png";
+  fs::path nmapPath = textureDirPath / "layered-cliff-normal-ogl.png";
+
+  GLuint albedoMap;
+  glGenTextures(1, &albedoMap);
+  loadTexture2d_proc(diffmapPath.c_str(), albedoMap);
 
   GLuint normalMap;
   glGenTextures(1, &normalMap);
@@ -155,7 +163,7 @@ int main() {
     // float angle = 20.0f;
     // render cube
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, diffuseMap);
+    glBindTexture(GL_TEXTURE_2D, albedoMap);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, normalMap);
 
@@ -164,6 +172,7 @@ int main() {
     cshader.setMat4Uni("model", cubeModel);
     cshader.setMat4Uni("projection", projection);
     cshader.setVec3Uni("lightPos", lightPos);
+    cshader.setVec3Uni("viewPos", viewPos);
 
     renderCube();
 
@@ -308,7 +317,7 @@ GLuint loadTexture2d_proc(const char *texturePath, GLuint tex) {
 
 void cubeShaderInit_proc(Shader myShader) {
   myShader.useProgram();
-  myShader.setIntUni("diffuseMap", 0);
+  myShader.setIntUni("albedoMap", 0);
   myShader.setIntUni("normalMap", 1);
 }
 
@@ -335,13 +344,11 @@ void renderTriangle(float vert[15], float normal[3]) {
   glEnableVertexAttribArray(0); // location
   glVertexAttribPointer(1,      // location ==  aNormal
                         3,      // vec3
-                        GL_FLOAT, GL_FALSE, fsize, (void *)(3 *
-                            sizeof(float)));
+                        GL_FLOAT, GL_FALSE, fsize, (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1); // location
   glVertexAttribPointer(2,      // location ==  aTexCoord
                         2,      // vec2
-                        GL_FLOAT, GL_FALSE,
-                        fsize, (void *)(6 * sizeof(float)));
+                        GL_FLOAT, GL_FALSE, fsize, (void *)(6 * sizeof(float)));
   glEnableVertexAttribArray(2); // location
   glBindVertexArray(triVAO);
   glDrawArrays(GL_TRIANGLES, 0, 6);
