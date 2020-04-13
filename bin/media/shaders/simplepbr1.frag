@@ -74,12 +74,16 @@ void main() {
 
   vec3 attc = vec3(1.0, 0.0, 0.0);
 
+  // ambient color
+  vec3 ambient =  0.2 * albedo * ao;
+
   vec3 refAtZero = vec3(0.04);
   refAtZero = mix(refAtZero, albedo, metallic.r);
   //refAtZero = mix(metallic, albedo, 0.5);
   float hcostheta = getCosTheta(surfaceNormal, halfDir);
+  float fresnelCostheta = getCosTheta(halfDir, viewDir);
 
-  vec3 fresnel = getFresnelSchlick(hcostheta, refAtZero);
+  vec3 fresnel = getFresnelSchlick(fresnelCostheta, refAtZero);
   float dN = bsNormalDistTraditional(surfaceNormal, halfDir, rough.r);
   float lambdaArr[2];
   bsLamdaTFnIO(surfaceNormal, halfDir, viewDir, rough.r, lambdaArr);
@@ -91,12 +95,16 @@ void main() {
   vec3 kd = vec3(1.0) - ks;
   kd = kd * (1.0 - metallic.x);
   vec3 t1 = dN * gD * fresnel;
-  float outDir = getCosTheta(surfaceNormal, viewDir);
-  float inDir = getCosTheta(surfaceNormal, lightDir);
+  float outDir = getPositiveCosTheta(surfaceNormal, viewDir);
+  float inDir = getPositiveCosTheta(surfaceNormal, lightDir);
   float t2 = 4.0 * outDir * inDir;
   vec3 specular = t1 / max(t2, 0.0001);
 
-  L_out = (kd * albedo.r / PI + specular) * 1.0f * inDir;
+  L_out = (kd * albedo / PI + specular) * 1.0f * inDir;
+
+  L_out += ambient;
+  L_out = L_out / (L_out + vec3(1.0));
+  L_out = pow(L_out, vec3(1.0/2.2));
 
   //FragColor = vec4(hcostheta * refAtZero, 1.0);
   FragColor = vec4(L_out, 1.0);
