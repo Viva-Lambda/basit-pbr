@@ -10,6 +10,7 @@ in vec2 TexCoord;
 // texture related
 uniform sampler2D albedoMap;
 uniform sampler2D normalMap;
+uniform sampler2D metallicMap;
 
 // light pos
 uniform vec3 lightPos;
@@ -29,6 +30,11 @@ void main() {
 
   // get albedo
   vec3 albedo = texture(albedoMap, TexCoord).rgb;
+
+  // get metallic
+  vec3 metallic = texture(metallicMap, TexCoord).rgb;
+
+
 
 
   vec3 surfaceNormal = getSurfaceNormal();
