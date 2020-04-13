@@ -1,7 +1,6 @@
 /*
    Simple PBR shader
  */
-// author: Kaan Eraslan
 // license: see, LICENSE
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -41,7 +40,6 @@ float deltaTime = 0.0f;
 float lastTime = 0.0f;
 
 bool inTangent = false;
-int ndfChoice = 0;
 
 glm::vec3 lightPos = glm::vec3(0.2f, 1.0f, 0.5f);
 // function declarations
@@ -65,8 +63,8 @@ glm::vec3 getBiTangent(glm::vec2 deltaUV2, glm::vec2 deltaUV1, glm::vec3 edge1,
 
 int main() {
   initializeGLFWMajorMinor(4, 2);
-  GLFWwindow *window =
-      glfwCreateWindow(WINWIDTH, WINHEIGHT, "PBR with Texture", NULL, NULL);
+  GLFWwindow *window = glfwCreateWindow(
+      WINWIDTH, WINHEIGHT, "Basic Phong With Specular Map", NULL, NULL);
 
   if (window == NULL) {
     std::cout << "Loading GLFW window had failed" << std::endl;
@@ -105,28 +103,24 @@ int main() {
   // rustediron2_normal.png
   // rustediron2_roughness.png
 
-  fs::path albedoMapPath = textureDirPath / "rustediron2_basecolor.png";
-  fs::path metallicMapPath = textureDirPath / "rustediron2_metallic.png";
-  fs::path normalMapPath = textureDirPath / "rustediron2_normal.png";
-  fs::path roughnessMapPath = textureDirPath / "rustediron2_roughness.png";
+  fs::path diffmapPath = textureDirPath / "Stone_001_Diffuse.png";
+  fs::path specularMapPath = textureDirPath / "Stone_001_Specular.png";
+  fs::path normalMapPath = textureDirPath / "Stone_001_Normal.png";
 
-  GLuint albedoMap;
-  glGenTextures(1, &albedoMap);
-  loadTexture2d_proc(albedoMapPath.c_str(), albedoMap);
-  GLuint metallicMap;
-  glGenTextures(1, &metallicMap);
-  loadTexture2d_proc(metallicMapPath.c_str(), metallicMap);
+  GLuint diffuseMap;
+  glGenTextures(1, &diffuseMap);
+  loadTexture2d_proc(diffmapPath.c_str(), diffuseMap);
+  GLuint specularMap;
+  glGenTextures(1, &specularMap);
+  loadTexture2d_proc(specularMapPath.c_str(), specularMap);
   GLuint normalMap;
   glGenTextures(1, &normalMap);
   loadTexture2d_proc(normalMapPath.c_str(), normalMap);
-  GLuint roughnessMap;
-  glGenTextures(1, &roughnessMap);
-  loadTexture2d_proc(roughnessMapPath.c_str(), roughnessMap);
 
   // load shaders
   // cube shader
-  std::string vertFileName_t = "simplepbr.vert";
-  std::string fragFileName_t = "simplepbr.frag";
+  std::string vertFileName_t = "phong.vert";
+  std::string fragFileName_t = "phong.frag";
 
   fs::path vertPath_t = shaderDirPath / vertFileName_t;
   fs::path fragPath_t = shaderDirPath / fragFileName_t;
@@ -139,9 +133,6 @@ int main() {
   Shader lampShader(vertPath_t.c_str(), frag2Path.c_str());
 
   // let's set up some uniforms
-
-  // cube shader
-  //
 
   // init proc for uniforms that don't change over rendering
   cubeShaderInit_proc(tangentCubeShader);
@@ -178,17 +169,15 @@ int main() {
     tangentCubeShader.setMat4Uni("projection", projection);
     tangentCubeShader.setVec3Uni("viewPos", viewPos);
     tangentCubeShader.setVec3Uni("lightPos", lightPos);
-    tangentCubeShader.setVec3Uni("lightColor", glm::vec3(1.0));
-    tangentCubeShader.setIntUni("ndf", ndfChoice);
+    tangentCubeShader.setFloatUni("lightIntensity", lightIntensity);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, albedoMap);
+    glBindTexture(GL_TEXTURE_2D, diffuseMap);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, metallicMap);
+    glBindTexture(GL_TEXTURE_2D, specularMap);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, normalMap);
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, roughnessMap);
-    renderCube();
+
+    renderCubeInTangentSpace();
 
     // unbind the light vertex array object
     glm::mat4 lampModel(1.0f);
@@ -223,10 +212,10 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
   lastX = xoffset;
   lastY = yoffset;
 
-  // camera.processMouseMovement(xoffset, yoffset);
+  camera.processMouseMovement(xoffset, yoffset);
 }
 void mouse_scroll_callback(GLFWwindow *window, double xpos, double ypos) {
-  // camera.processMouseScroll(ypos);
+  camera.processMouseScroll(ypos);
 }
 void processInput_proc(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -273,10 +262,6 @@ void processInput_proc(GLFWwindow *window) {
   }
   if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
     lightPos.z += 0.05f;
-  }
-  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-    ndfChoice += 1;
-    ndfChoice = (ndfChoice > 3) ? 0 : ndfChoice;
   }
 }
 
@@ -332,14 +317,103 @@ GLuint loadTexture2d_proc(const char *texturePath, GLuint tex) {
   stbi_image_free(data);
   return tex;
 }
-
+glm::vec3 getTangent(glm::vec2 deltaUV2, glm::vec2 deltaUV1, glm::vec3 edge1,
+                     glm::vec3 edge2) {
+  // Compute tangent
+  GLfloat f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+  glm::vec3 tangent;
+  tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+  tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+  tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+  tangent = glm::normalize(tangent);
+  return tangent;
+}
+glm::vec3 getBiTangent(glm::vec2 deltaUV2, glm::vec2 deltaUV1, glm::vec3 edge1,
+                       glm::vec3 edge2) {
+  GLfloat f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+  glm::vec3 bitangent;
+  bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+  bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+  bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+  bitangent = glm::normalize(bitangent);
+  return bitangent;
+}
 void cubeShaderInit_proc(Shader myShader) {
   myShader.useProgram();
-  myShader.setIntUni("albedoMap", 0);
-  myShader.setIntUni("metallicMap", 1);
+  float ambientCoeff = 0.1f;
+  float shininess = 200.0f;
+  glm::vec3 attc(1.0f, 0.0f, 0.0f);
+  myShader.setFloatUni("ambientCoeff", ambientCoeff);
+  myShader.setFloatUni("shininess", shininess);
+  myShader.setVec3Uni("attC", attc);
+  myShader.setIntUni("diffuseMap", 0);
+  myShader.setIntUni("specularMap", 1);
   myShader.setIntUni("normalMap", 2);
-  myShader.setIntUni("roughnessMap", 3);
-  myShader.setIntUni("ndf", ndfChoice);
+}
+void renderTriangleInTangentSpace(float vert[15], float normal[3]) {
+  GLuint triVBO, triVAO;
+  glGenBuffers(1, &triVBO);
+  glGenVertexArrays(1, &triVAO);
+
+  // triangle points
+  glm::vec3 p1(vert[0], vert[1], vert[2]);
+  glm::vec2 tex1(vert[3], vert[4]);
+  glm::vec3 p2(vert[5], vert[6], vert[7]);
+  glm::vec2 tex2(vert[8], vert[9]);
+  glm::vec3 p3(vert[10], vert[11], vert[12]);
+  glm::vec2 tex3(vert[13], vert[14]);
+
+  // there are two triangles in a square
+  glm::vec3 snormal(normal[0], normal[1], normal[2]);
+
+  // first triangle
+  glm::vec3 edge1 = p2 - p1;
+  glm::vec3 edge2 = p3 - p1;
+  glm::vec2 deltaUV1 = tex2 - tex1;
+  glm::vec2 deltaUV2 = tex3 - tex1;
+
+  glm::vec3 tan = getTangent(deltaUV2, deltaUV1, edge1, edge2);
+  glm::vec3 bitan = getBiTangent(deltaUV2, deltaUV1, edge1, edge2);
+
+  float trivert[] = {
+      p1.x,   p1.y,  p1.z,  snormal.x, snormal.y, snormal.z, tex1.x,
+      tex1.y, tan.x, tan.y, tan.z,     bitan.x,   bitan.y,   bitan.z,
+      p2.x,   p2.y,  p2.z,  snormal.x, snormal.y, snormal.z, tex2.x,
+      tex2.y, tan.x, tan.y, tan.z,     bitan.x,   bitan.y,   bitan.z,
+      p3.x,   p3.y,  p3.z,  snormal.x, snormal.y, snormal.z, tex3.x,
+      tex3.y, tan.x, tan.y, tan.z,     bitan.x,   bitan.y,   bitan.z,
+  };
+  glBindVertexArray(triVAO);
+  glBindBuffer(GL_ARRAY_BUFFER, triVBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(trivert), &trivert, GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0); // location
+  // specify attributes
+  GLsizei fsize = 14 * sizeof(float);
+  glVertexAttribPointer(0, // location ==  aPos
+                        3, // vec3
+                        GL_FLOAT, GL_FALSE, fsize, (void *)0);
+  glEnableVertexAttribArray(1); // location
+  glVertexAttribPointer(1,      // location ==  aNormal
+                        3,      // vec3
+                        GL_FLOAT, GL_FALSE, fsize, (void *)(3 * sizeof(float)));
+  glEnableVertexAttribArray(2); // location
+  glVertexAttribPointer(2,      // location ==  aTexCoord
+                        2,      // vec2
+                        GL_FLOAT, GL_FALSE, fsize, (void *)(6 * sizeof(float)));
+  glEnableVertexAttribArray(3); // location
+  glVertexAttribPointer(3,      // location ==  aTan
+                        3,      // vec3
+                        GL_FLOAT, GL_FALSE, fsize, (void *)(8 * sizeof(float)));
+  glEnableVertexAttribArray(4); // location
+  glVertexAttribPointer(4,      // location ==  aBiTan
+                        3,      // vec3
+                        GL_FLOAT, GL_FALSE, fsize,
+                        (void *)(11 * sizeof(float)));
+  glBindVertexArray(triVAO);
+  glDrawArrays(GL_TRIANGLES, 0, 3);
+  glBindVertexArray(0);
+  glDeleteVertexArrays(1, &triVAO);
+  glDeleteBuffers(1, &triVBO);
 }
 void renderTriangle(float vert[15], float normal[3]) {
   GLuint triVBO, triVAO;
@@ -392,6 +466,93 @@ void renderLamp() {
   glBindVertexArray(0);
   glDeleteVertexArrays(1, &lightVao);
   glDeleteBuffers(1, &vbo);
+}
+void renderCubeInTangentSpace() {
+  /*
+     Draw cube
+   */
+  float s1n[] = {0.0f, 0.0f, -1.0f};
+  float s2n[] = {0.0f, 0.0f, 1.0f};
+  float s3n[] = {-1.0f, 0.0f, 0.0f};
+  float s4n[] = {1.0f, 0.0f, 0.0f};
+  float s5n[] = {0.0f, -1.0f, 0.0f};
+  float s6n[] = {0.0f, 1.0f, 0.0f};
+
+  // positions        // texture coords
+  float t1[] = {
+      -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,  0.5f, -0.5f, -0.5f,
+      1.0f,  0.0f,  0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
+  };
+  renderTriangleInTangentSpace(t1, s1n);
+  float tt1[] = {
+      0.5f, 0.5f, -0.5f, 1.0f,  1.0f,  -0.5f, 0.5f, -0.5f,
+      0.0f, 1.0f, -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,
+  };
+  renderTriangleInTangentSpace(tt1, s1n);
+
+  float t2[] = {
+      -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 0.5f, -0.5f, 0.5f,
+      1.0f,  0.0f,  0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+  };
+
+  renderTriangleInTangentSpace(t2, s2n);
+  float tt2[] = {
+      0.5f, 0.5f, 0.5f,  1.0f,  1.0f, -0.5f, 0.5f, 0.5f,
+      0.0f, 1.0f, -0.5f, -0.5f, 0.5f, 0.0f,  0.0f,
+  };
+
+  renderTriangleInTangentSpace(tt2, s2n);
+
+  float t3[] = {
+      -0.5f, 0.5f, 0.5f,  1.0f,  0.0f,  -0.5f, 0.5f, -0.5f,
+      1.0f,  1.0f, -0.5f, -0.5f, -0.5f, 0.0f,  1.0f,
+  };
+  renderTriangleInTangentSpace(t3, s3n);
+
+  float tt3[] = {
+      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, -0.5f, -0.5f, 0.5f,
+      0.0f,  0.0f,  -0.5f, 0.5f, 0.5f, 1.0f,  0.0f,
+  };
+  renderTriangleInTangentSpace(tt3, s3n);
+
+  float t4[] = {
+      0.5f, 0.5f, 0.5f, 1.0f,  0.0f,  0.5f, 0.5f, -0.5f,
+      1.0f, 1.0f, 0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+  };
+
+  renderTriangleInTangentSpace(t4, s4n);
+  float tt4[] = {
+      0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.5f, -0.5f, 0.5f,
+      0.0f, 0.0f,  0.5f,  0.5f, 0.5f, 1.0f, 0.0f,
+  };
+
+  renderTriangleInTangentSpace(tt4, s4n);
+
+  float t5[] = {
+      -0.5f, -0.5f, -0.5f, 0.0f,  1.0f, 0.5f, -0.5f, -0.5f,
+      1.0f,  1.0f,  0.5f,  -0.5f, 0.5f, 1.0f, 0.0f,
+  };
+
+  renderTriangleInTangentSpace(t5, s5n);
+
+  float tt5[] = {
+      0.5f, -0.5f, 0.5f,  1.0f,  0.0f,  -0.5f, -0.5f, 0.5f,
+      0.0f, 0.0f,  -0.5f, -0.5f, -0.5f, 0.0f,  1.0f,
+  };
+
+  renderTriangleInTangentSpace(tt5, s5n);
+
+  float t6[] = {
+      -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.5f, 0.5f, -0.5f,
+      1.0f,  1.0f, 0.5f,  0.5f, 0.5f, 1.0f, 0.0f,
+  };
+
+  renderTriangleInTangentSpace(t6, s6n);
+
+  float tt6[] = {0.5f, 0.5f, 0.5f,  1.0f, 0.0f,  -0.5f, 0.5f, 0.5f,
+                 0.0f, 0.0f, -0.5f, 0.5f, -0.5f, 0.0f,  1.0f};
+
+  renderTriangleInTangentSpace(tt6, s6n);
 }
 void renderCube() {
   /*

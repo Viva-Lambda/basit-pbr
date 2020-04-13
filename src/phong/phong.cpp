@@ -132,9 +132,6 @@ int main() {
 
   // let's set up some uniforms
 
-  // cube shader
-  //
-
   // init proc for uniforms that don't change over rendering
   cubeShaderInit_proc(tangentCubeShader);
 
