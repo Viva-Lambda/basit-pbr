@@ -63,8 +63,8 @@ glm::vec3 getBiTangent(glm::vec2 deltaUV2, glm::vec2 deltaUV1, glm::vec3 edge1,
 
 int main() {
   initializeGLFWMajorMinor(4, 2);
-  GLFWwindow *window = glfwCreateWindow(
-      WINWIDTH, WINHEIGHT, "Basic Phong With Specular Map", NULL, NULL);
+  GLFWwindow *window = glfwCreateWindow(WINWIDTH, WINHEIGHT,
+                                        "Simple PBR With Texture", NULL, NULL);
 
   if (window == NULL) {
     std::cout << "Loading GLFW window had failed" << std::endl;
