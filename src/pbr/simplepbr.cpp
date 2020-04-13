@@ -108,6 +108,7 @@ int main() {
   fs::path diffmapPath = textureDirPath / "layered-cliff-albedo.png";
   fs::path nmapPath = textureDirPath / "layered-cliff-normal-ogl.png";
   fs::path mmapPath = textureDirPath / "layered-cliff-metallic.png";
+  fs::path aomapPath = textureDirPath / "layered-cliff-ao.png";
 
   GLuint albedoMap;
   glGenTextures(1, &albedoMap);
@@ -120,6 +121,10 @@ int main() {
   GLuint metallicMap;
   glGenTextures(1, &metallicMap);
   loadTexture2d_proc(mmapPath.c_str(), metallicMap);
+
+  GLuint aoMap;
+  glGenTextures(1, &aoMap);
+  loadTexture2d_proc(aomapPath.c_str(), aoMap);
 
   // load shaders
   // cube shader
@@ -173,6 +178,8 @@ int main() {
     glBindTexture(GL_TEXTURE_2D, normalMap);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, metallicMap);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, aoMap);
 
     cshader.useProgram();
     cshader.setMat4Uni("view", viewMat);
@@ -327,6 +334,7 @@ void cubeShaderInit_proc(Shader myShader) {
   myShader.setIntUni("albedoMap", 0);
   myShader.setIntUni("normalMap", 1);
   myShader.setIntUni("metallicMap", 2);
+  myShader.setIntUni("aoMap", 3);
 }
 
 void renderTriangle(float vert[15], float normal[3]) {
