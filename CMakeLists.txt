@@ -12,8 +12,6 @@ include_directories(
 set( GLFW_SHARED_LIB
     "${PROJECT_SOURCE_DIR}/libs/glfw/src/libglfw.so")
 
-set (ASSIMP_SHARED_LIB
-    "${PROJECT_SOURCE_DIR}/libs/assimp/libassimp.so.5")
 
 set (CMAKE_CXX_FLAGS "-std=c++17")
 
@@ -47,10 +45,6 @@ add_executable(pbr.out
     "src/glad.c"
     "src/pbr/simplepbr.cpp"
     )
-add_executable(pbrtexture.out 
-    "src/glad.c"
-    "src/pbr/pbrtexture.cpp"
-    )
 
 target_link_libraries(myWin.out ${ALL_LIBS})
 target_link_libraries(texture.out ${ALL_LIBS})
@@ -62,5 +56,4 @@ install(TARGETS myWin.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")
 install(TARGETS phong.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")
 install(TARGETS phong2MovingLight.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")
 install(TARGETS pbr.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")
-install(TARGETS pbrtexture.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")
 install(TARGETS texture.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")

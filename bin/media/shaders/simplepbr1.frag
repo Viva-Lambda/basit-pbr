@@ -35,6 +35,8 @@ float roughnessToAlpha(float roughness);
 
 vec3 getAlbedo();
 vec3 getFresnelSchlick(float costheta, vec3 refAtZero);
+
+// beckamn Spizzichino Distribution related
 float bsNormalDistTraditional(vec3 normal, vec3 halfwayDir, float roughness);
 float bsLambdaFn(vec3 normal, vec3 halfDir, float alpha);
 // traditional Beckmann Spizzichino Distribution
@@ -42,6 +44,10 @@ float bsLamdaTFn(vec3 normal, vec3 halfway, float roughness);
 // lambda for traditional Beckmann Spizzichino Distribution
 void bsLamdaTFnIO(vec3 normal, vec3 halfDir, vec3 viewDir, float roughness,
                   float lambdaArr[2]);
+
+
+//
+
 
 float geometryDistributionIn(float lambda);
 float geometryInOut(float lambdaIn, float lambdaOut);
